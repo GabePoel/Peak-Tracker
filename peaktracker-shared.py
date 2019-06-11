@@ -28,11 +28,11 @@ def main():
     print("now calling main")
     # change file path as needed
 
-    # prefix = "/home/gpe/Documents/Peak-Tracker/trial-data"
-    # directories = [prefix + "/2_cooldown/"]
+    prefix = "/home/gpe/Documents/Peak-Tracker/trial-data"
+    directories = [prefix + "/2_cooldown/"]
 
-    prefix = os.path.expanduser('~') + "/Box/RUS data/Sylvia/"
-    directories = [prefix + "CeCoIn5/AG1800 - I/2_cooldown/"]
+    # prefix = os.path.expanduser('~') + "/Box/RUS data/Sylvia/"
+    # directories = [prefix + "CeCoIn5/AG1800 - I/2_cooldown/"]
 
     filepaths = []
     for directory in directories:
@@ -240,6 +240,9 @@ def clusteredfits(freq, R, fullparamlist):
 
         paramset = paramsort(paramset)
 
+        global freqsubset
+        global Rsubset
+
         # lowest freq - 10*(lowest FWHM)
         freqmin = paramset[2] - 10 * paramset[3]
         # highest freq + 10*(highest FWHM)
@@ -274,21 +277,36 @@ def clusteredfits(freq, R, fullparamlist):
             print(" ")
             print("freq:")
             print(str(min(freq)) + " - " + str(max(freq)))
+            print(freq)
             print(" ")
             # wait.sleep(5)
             # Plot the yikes point to see what's going on - dig into this
             # Try ignoring the super small widths
-            peakidx = (np.abs(freq - paramset[3])).argmin()
-            freqsubset = freq[peakidx - 3:peakidx + 3]
-            print("Length of frequency subset:")
-            print(len(freqsubset))
-            freqmax = freqmax * 10
-            freqmin = freqmin / 10
-            freqmax, freqmin = max(freqmax, freqmin), min(freqmax, freqmin)
-            Rsubset = R[(freq < max(freqmax, freqmin)) &
-                        (freq > min(freqmax, freqmin))]
-            peakidx = (np.abs(freq - paramset[3])).argmin()
-            freqsubset = freq[peakidx - 3:peakidx + 3]
+            newFreqMin = paramset[2] - (1000 * paramset[3])
+            newFreqMax = paramset[-2] + (1000 * paramset[-1])
+            newFreqMax, newFreqMin = max(newFreqMax, newFreqMin), min(newFreqMax, newFreqMin)
+            freqsubset = freq[(freq < newFreqMax) & (freq > newFreqMin)]
+            Rsubset = R[(freq < newFreqMax) & (freq > newFreqMin)]
+            bugMe("second try")
+            print("totalMinFreq:")
+            print("    " + str(totalMinFreq))
+            print("totalMaxFreq:")
+            print("    " + str(totalMaxFreq))
+            print("freqsubset:")
+            print("    " + str(freqsubset))
+            print(" ")
+            print("paramset:")
+            print("    " + str(paramset))
+            print(" ")
+            print("newFreqMax:")
+            print("    " + str(newFreqMax))
+            print(" ")
+            print("newFreqMin:")
+            print("    " + str(newFreqMin))
+            print(" ")
+            print("freq:")
+            print(str(min(freq)) + " - " + str(max(freq)))
+            print(" ")
             # return paramset
 
         [slope, offset] = np.polyfit(freqsubset, Rsubset, deg=1)
@@ -467,7 +485,7 @@ def paramsort(p):
     for i in range(0, len(newposlist)):
         updatedparamset.append(sortednewamplist[i])
         updatedparamset.append(sortednewskewlist[i])
-        updatedparamset.append(np.fabs(sortednewposlist[i]))
+        updatedparamset.append(sortednewposlist[i])
         updatedparamset.append(sortednewwidthlist[i])
     return p
 
