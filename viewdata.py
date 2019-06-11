@@ -91,6 +91,7 @@ def printfreq(filepaths):
         R = sqrt(X**2 + Y**2)
         print([freq,X,Y,starttemp,endtemp])
 
+
 def interpolatenans(inputarray):
     print("now calling interpolatenans")
     if np.isnan(inputarray).any(): #if array contains any NaNs, interpolate over them

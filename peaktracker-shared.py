@@ -7,6 +7,7 @@ from nptdms import TdmsFile
 import matplotlib.pyplot as plt
 from scipy.optimize import least_squares
 from scipy.optimize import leastsq
+# from scipy.optimize import find_peaks
 
 from peakdetect import peakdet
 
@@ -28,11 +29,11 @@ def main():
     print("now calling main")
     # change file path as needed
 
-    prefix = "/home/gpe/Documents/Peak-Tracker/trial-data"
-    directories = [prefix + "/2_cooldown/"]
+    # prefix = "/home/gpe/Documents/Peak-Tracker/trial-data"
+    # directories = [prefix + "/2_cooldown/"]
 
-    # prefix = os.path.expanduser('~') + "/Box/RUS data/Sylvia/"
-    # directories = [prefix + "CeCoIn5/AG1800 - I/2_cooldown/"]
+    prefix = os.path.expanduser('~') + "/Box/RUS data/Sylvia/"
+    directories = [prefix + "CeCoIn5/AG1800 - I/2_cooldown/"]
 
     filepaths = []
     for directory in directories:
@@ -240,13 +241,7 @@ def clusteredfits(freq, R, fullparamlist):
 
         paramset = paramsort(paramset)
 
-        global freqsubset
-        global Rsubset
-
-        # lowest freq - 10*(lowest FWHM)
-        freqmin = paramset[2] - 10 * paramset[3]
-        # highest freq + 10*(highest FWHM)
-        freqmax = paramset[-2] + 10 * paramset[-1]
+        freqmin, freqmax = freqRange(paramset, freq)
         freqmax, freqmin = max(freqmax, freqmin), min(freqmax, freqmin)
         freqsubset = freq[(freq < freqmax) &
                           (freq > freqmin)]
@@ -255,82 +250,25 @@ def clusteredfits(freq, R, fullparamlist):
 
         print("predicted frequency:")
         print(paramset[2])
+        print("freqmin:")
+        print(freqmin)
+        print("freqmax:")
+        print(freqmax)
         oldFreqs = paramset[0::1]
-
-        if len(freqsubset) == 0:
-            bugMe("yikes")
-            print("totalMinFreq:")
-            print("    " + str(totalMinFreq))
-            print("totalMaxFreq:")
-            print("    " + str(totalMaxFreq))
-            print("freqsubset:")
-            print("    " + str(freqsubset))
-            print(" ")
-            print("paramset:")
-            print("    " + str(paramset))
-            print(" ")
-            print("freqmax:")
-            print("    " + str(freqmax))
-            print(" ")
-            print("freqmin:")
-            print("    " + str(freqmin))
-            print(" ")
-            print("freq:")
-            print(str(min(freq)) + " - " + str(max(freq)))
-            print(freq)
-            print(" ")
-            # wait.sleep(5)
-            # Plot the yikes point to see what's going on - dig into this
-            # Try ignoring the super small widths
-            newFreqMin = paramset[2] - (1000 * paramset[3])
-            newFreqMax = paramset[-2] + (1000 * paramset[-1])
-            newFreqMax, newFreqMin = max(newFreqMax, newFreqMin), min(newFreqMax, newFreqMin)
-            freqsubset = freq[(freq < newFreqMax) & (freq > newFreqMin)]
-            Rsubset = R[(freq < newFreqMax) & (freq > newFreqMin)]
-            bugMe("second try")
-            print("totalMinFreq:")
-            print("    " + str(totalMinFreq))
-            print("totalMaxFreq:")
-            print("    " + str(totalMaxFreq))
-            print("freqsubset:")
-            print("    " + str(freqsubset))
-            print(" ")
-            print("paramset:")
-            print("    " + str(paramset))
-            print(" ")
-            print("newFreqMax:")
-            print("    " + str(newFreqMax))
-            print(" ")
-            print("newFreqMin:")
-            print("    " + str(newFreqMin))
-            print(" ")
-            print("freq:")
-            print(str(min(freq)) + " - " + str(max(freq)))
-            print(" ")
-            # return paramset
 
         [slope, offset] = np.polyfit(freqsubset, Rsubset, deg=1)
         p0 = np.append(paramset, [offset, slope])
-        print(" ")
-        print("p0:")
-        print("    offset:")
-        print("        " + str(offset))
-        print("    slope:")
-        print("        " + str(slope))
 
         weights = np.ones(len(freqsubset))
         result = least_squares(multilorentzresidual, p0, ftol=1e-10,
                                args=(freqsubset, Rsubset, weights))
         params = result.x
-        print("missedFrequencies:")
-        print(params[2::4])
         oldFreqs = paramsort(oldFreqs)
         params = paramsort(params)
-        for i in range(0, len(params[2::4])):
-            params[i * 4 + 2] = checkFrequency(params[i * 4 + 2], oldFreqs[i * 4 + 2], totalMinFreq, totalMaxFreq)
+        params = singleParamSetFilter(oldFreqs, params)
         # don't bother storing params for background fit
         newparamlist = np.append(newparamlist, params[:-2])
-        newparamlist = paramsort(newparamlist)
+        newparamlist = paramsort(params)
         # plt.plot(freqsubset,multilorentz(params,freqsubset),'r')
 
     # newpeakpositions = newparamlist[2::4]
@@ -348,6 +286,28 @@ def clusteredfits(freq, R, fullparamlist):
     return newparamlist
 
 
+def freqRange(paramset, freq):
+    global titalMinFreq
+    global totalMaxFreq
+    testMin = max(paramset[2] - 10 * paramset[3], totalMinFreq)
+    testMax = min(paramset[-2] + 10 * paramset[-1], totalMaxFreq)
+    if len(freq[(freq < testMin) & (freq > testMax)]) == 0:
+        bugMe("almost yikes")
+        freqDelta = np.absolute((testMax - testMin) * 3)
+        freqmin = max(paramset[2] - 30 * paramset[3], totalMinFreq)
+        freqmax = min(freqmin + freqDelta, totalMaxFreq)
+        print("testMin: " + str(testMin))
+        print("testMax: " + str(testMax))
+        print("intended freqMin: " + str(freqmin))
+        print("intended freqMax: " + str(freqmax))
+        print("intended freqDelta: " + str(freqDelta))
+        return freqmin, freqmax
+    else:
+        freqmin = max(paramset[2] - 10 * paramset[3], totalMinFreq)
+        freqmax = min(paramset[-2] + 10 * paramset[-1], totalMaxFreq)
+        return freqmin, freqmax
+
+
 def cleanBadParams(params):
     global totalMinFreq
     global totalMaxFreq
@@ -360,6 +320,24 @@ def cleanBadParams(params):
             toAdd = np.array([params[i * 4], params[i * 4 + 1], params[i * 4 + 2], params[i * 4 + 3]])
             newParams = np.append(newParams, toAdd)
     return newParams
+
+
+def singleParamSetFilter(oldParamSet, newParamSet):
+    global totalMinFreq
+    global totalMaxFreq
+    returnParamSet = np.array([])
+    for i in range(0, len(newParamSet[2::4])):
+        if checkFrequency(newParamSet[i * 4 + 2], oldParamSet[i * 4 + 2], totalMinFreq, totalMaxFreq):
+            toAppend = oldParamSet[i * 4: (i + 1) * 4]
+            returnParamSet = np.append(returnParamSet, toAppend)
+            print("toAppend: " + str(toAppend))
+        else:
+            toAppend = newParamSet[i * 4: (i + 1) * 4]
+            returnParamSet = np.append(returnParamSet, toAppend)
+            print("toAppend: " + str(toAppend))
+    print("returnParamSet: " + str(returnParamSet))
+    return returnParamSet
+
 
 def trackpeaks(initparamlist, filepaths):
     # print("now calling trackpeaks")
@@ -405,11 +383,21 @@ def checkFrequency(thisFreq, backupFreq, minFreq, maxFreq):
         print("maxFreq: " + str(maxFreq))
         print("thisFreq: " + str(thisFreq))
         print("backupFreq: " + str(backupFreq))
-        return backupFreq
+        print("final frequency: " + str(min(max(backupFreq, minFreq), maxFreq)))
+        # return min(max(backupFreq, minFreq), maxFreq)
+        return True
     else:
         bugMe("no crisis?")
         print("thisFreq: " + str(thisFreq))
-        return thisFreq
+        # return min(max(thisFreq, minFreq), maxFreq)
+        return False
+
+
+def checkWidth(thisWidth, backupWidth):
+    if ((thisWidth / backupWidth) > 10 or (backupWidth / thisWidth > 10)):
+        return backupWidth
+    else:
+        return thisWidth
 
 
 # unsuccessful attempts to find resonances purely via automated
