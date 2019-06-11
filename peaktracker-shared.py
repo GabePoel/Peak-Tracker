@@ -25,11 +25,12 @@ totaltemplist = []
 
 def main():
     print("now calling main")
-    prefix = "/Users/gabrielperko-engel/Box/RUS data/Sylvia/" #change file path as needed
-    directories = [prefix + "CeCoIn5/AG1800 - I/2_cooldown/"]
+    prefix = "/home/gpe/Documents/Peak-Tracker/trial-data" #change file path as needed
+    directories = [prefix + "/2_cooldown/"]
     filepaths = []
     for directory in directories:
         filepaths = filepaths + sorted(glob.glob(directory + "*.tdms"))
+    print(filepaths)
     initparamlist = initializearray(filepaths[0])
     trackpeaks(initparamlist,filepaths)
 
@@ -202,7 +203,7 @@ def clusteredfits(freq,R,fullparamlist):
         print(freqmin)
         Rsubset = R[(freq < max(freqmax, freqmin)) & (freq > min(freqmax, freqmin))]
         if len(freqsubset) == 0:
-            print 'yikes'
+            print ('yikes')
             # wait.sleep(5)
             # Plot the yikes point to see what's going on - dig into this
             # Try ignoring the super small widths
@@ -255,7 +256,7 @@ def trackpeaks(initparamlist,filepaths):
 
     for i in range(0,len(filepaths)):
         if i%30 == 0:
-            print i #just to see progress
+            print (i) #just to see progress
         [freq,X,Y,starttemp,endtemp] = returnvals(filepaths[i],1,0)
         R = sqrt(X**2 + Y**2)
 
