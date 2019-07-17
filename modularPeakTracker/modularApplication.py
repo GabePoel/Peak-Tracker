@@ -58,8 +58,12 @@ class ModularApplication:
             exportLocation = location
         exportFolders = os.listdir(exportLocation)
         existingExportNumbers = []
+        print(exportFolders)
         for folder in exportFolders:
-            existingExportNumbers.append(int(folder[6:]))
+            try:
+                existingExportNumbers.append(int(folder[6:]))
+            except:
+                print("invalid folder in directory")
         if len(existingExportNumbers) == 0:
             thisExportNumber = 1
         else:
@@ -138,6 +142,9 @@ class ModularApplication:
             video.write(frame)
         video.release()
         cv2.destroyAllWindows()
+
+    def exportPlot(self, name):
+        self.fig.savefig(self.currentExportFolder + "/" + str(name))
 
 def loadDefaultImportDirectory():
     root = os.getcwd()

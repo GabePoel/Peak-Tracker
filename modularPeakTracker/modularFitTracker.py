@@ -40,24 +40,25 @@ class ModularFitTracker:
 
     def fitOverEveryDataBatch(self):
         for i in range(0, self.totalDataBatches):
+            self.currentIndex = i
             self.fitOverSingleDataBatch(i)
+        self.parent.exportVideo()
 
     def fitOverSingleDataBatch(self, index, mode="automatic"):
-        print("current index: " + str(index))
         if index == 0:
             referenceDataBatch = self.preDataBuffer
         else:
             referenceDataBatch = self.dataSet.getDataBatch(index - 1, "pre")
-        parameters = referenceDataBatch.getMultiParameters()
         targetDataBatch = self.dataSet.getDataBatch(index, "post")
         targetDataBatch.clearLorentz()
-        targetDataBatch.importLorentzFromParameterList(parameters)
+        targetDataBatch.importLorentzFromDataBatch(referenceDataBatch)
         nextDataBatch = self.dataSet.getDataBatch(index, "pre")
+        nextDataBatch.clearLorentz()
         nextDataBatch.importLorentzFromDataBatch(targetDataBatch)
-        print("referenceDataBatch array: " + str(referenceDataBatch.lorentzCount))
-        print("targetDataBatch array: " + str(targetDataBatch.lorentzCount))
-        print("nextDataBatch array: " + str(nextDataBatch.lorentzCount))
-        self.plotDataBatch(targetDataBatch)
+        if conf.liveUpdate:
+            self.plotDataBatch(targetDataBatch)
+        if conf.exportImages:
+            self.exportCurrentImage()
 
     def plotDataBatch(self, dataBatch):
         if conf.displayScale == "local":
@@ -75,6 +76,13 @@ class ModularFitTracker:
             self.ax.plot(fit[0], fit[1], color='r')
         self.ax.plot(xPeaks, yPeaks, 'x', color='g')
         self.canvas.draw()
+
+    def exportCurrentImage(self):
+        if conf.exportImages:
+            frameNumber = str(self.currentIndex)
+            numZeros = 5 - len(frameNumber)
+            frameName = "frame" + ("0" * numZeros) + frameNumber
+            self.parent.exportPlot(frameName)
 
     def adjustPreDataBuffer(self):
         if self.readyToAdjust:

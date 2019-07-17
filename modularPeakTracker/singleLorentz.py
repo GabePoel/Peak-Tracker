@@ -16,8 +16,8 @@ class SingleLorentz:
         self.rightDistance = np.inf
 
     def setupData(self):
-        localMin = self.peakFrequency - 2 * self.fullWidthHalfMaximum
-        localMax = self.peakFrequency + 2 * self.fullWidthHalfMaximum
+        localMin = self.peakFrequency - 3 * self.fullWidthHalfMaximum
+        localMax = self.peakFrequency + 3 * self.fullWidthHalfMaximum
         self.minMax = (localMin, localMax)
         self.xData = self.dataBatch.getData(self.minMax, "point", "freq")
         self.yData = self.dataBatch.getData(self.minMax, "point", "r", "freq")

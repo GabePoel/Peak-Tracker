@@ -143,8 +143,6 @@ class DataBatch:
                 lorentzSets[i] = tuple(lorentzSets[i])
         lorentzSets = set(lorentzSets)
         lorentzSets = list(lorentzSets)
-        print("lorentzSets:")
-        print(lorentzSets)
         return lorentzSets
 
     def getMultiParameters(self):
@@ -174,12 +172,10 @@ class DataBatch:
 
     def importLorentzFromParameterList(self, parameterList):
         parameterList = self.splitParameterList(parameterList)
-        print("parameterList: " + str(parameterList))
         for parameters in parameterList:
             lorentz = SingleLorentz(self)
             lorentz.setSingleParameters(parameters)
             self.addLorentz(lorentz)
-            print("localIndex: " + str(lorentz.localIndex))
         self.sortLorentz()
 
     def splitParameterList(self, parameterList):
