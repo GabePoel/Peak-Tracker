@@ -1,38 +1,17 @@
 import warnings
 import numpy as np
 import modularPeakFit as pk
+import modularConfig as conf
 from scipy.optimize import least_squares
+from scipy.optimize import curve_fit
 
-def getPostLorentz(preLorentz, includeBackground=False):
-    freq = preLorentz.peakFrequency
-    amp = preLorentz.amplitude
-    skew = preLorentz.skew
-    width = preLorentz.fullWidthHalfMaximum
-    xData = preLorentz.xData
-    yData = preLorentz.yData
-    guessParameters = np.array([amp, skew, freq, width])
-    fitInputWeights = np.ones(len(xData))
-    if len(guessParameters) == 4:
-        guessParameters = np.append(guessParameters, \
-            getLocalBackgroundParameters(xData, yData))
-    fitResult = least_squares(pk.multilorentzresidual, guessParameters,  \
-         ftol=1e-10, args=(xData, yData, fitInputWeights))
-    returnParameters = fitResult.x
-    if includeBackground:
-        return returnParameters
-    return returnParameters[:-2]
-
-def getFitData(singleLorentz, xData):
-    fitParameters = singleLorentz.getSingleParameters()
-    xData = singleLorentz.xData
-    yData = singleLorentz.yData
-    backgroundParameters = getLocalBackgroundParameters(xData, yData)
-    fitParameters = np.append(fitParameters, backgroundParameters)
-    fitInputWeights = np.ones(len(xData))
-    fitResults = least_squares(pk.multilorentzresidual, fitParameters,  \
-         ftol=1e-10, args=(xData, yData, fitInputWeights))
-    yFitData = pk.multilorentz(fitResults.x, xData)
-    return yFitData
+def safeLeastSquares(fit, parameters, args=None):
+    ftol = conf.terminationCostTolerance
+    gtol = conf.terminationCostTolerance
+    xtol = conf.terminationIndependentTolerance
+    warnings.simplefilter(action='ignore', category=FutureWarning)
+    return least_squares(fit, parameters, ftol=ftol, gtol=gtol, xtol=xtol, \
+        args=args)
 
 def getLocalBackgroundParameters(xData, yData):
     defaultOffset = np.mean(yData[0] + yData[len(yData) - 1])
@@ -45,9 +24,17 @@ def getLocalBackgroundParameters(xData, yData):
             print("Background fit issue. Using default background.")
     return np.array([slope, offset])
 
-def reduceData(parameters, xData):
-    xMax = parameters[2] + 2 * parameters[3]
-    xMin = parameters[2] - 2 * parameters[3]
+def getFitData(singleLorentz, xData):
+    fitParameters = singleLorentz.getSingleParameters()
+    xData = singleLorentz.xData
+    yData = singleLorentz.yData
+    backgroundParameters = getLocalBackgroundParameters(xData, yData)
+    fitParameters = np.append(fitParameters, backgroundParameters)
+    fitInputWeights = np.ones(len(xData))
+    fitResults = least_squares(pk.multiLorentzResidualFit, fitParameters,  \
+         ftol=1e-10, args=(xData, yData, fitInputWeights))
+    yFitData = pk.multiLorentzFit(fitResults.x, xData)
+    return yFitData
 
 def getMultiFitData(dataBatch):
     parameterList = dataBatch.getMultiParameters()
@@ -63,9 +50,9 @@ def getMultiFitData(dataBatch):
         backgroundParameters = getLocalBackgroundParameters(xData, yData)
         fitParameters = np.append(parameterList[i], backgroundParameters)
         fitInputWeights = np.ones(len(xData))
-        fitResults = least_squares(pk.multilorentzresidual, fitParameters, \
-            ftol=1e-19, args=(xData, yData, fitInputWeights))
-        yFitData = pk.multilorentz(fitResults.x, xData)
+        fitResults = safeLeastSquares(pk.multiLorentzResidualFit, fitParameters, \
+            args=(xData, yData, fitInputWeights))
+        yFitData = pk.multiLorentzFit(fitResults.x, xData)
         fitList.append((xData, yFitData))
     return fitList
 
@@ -83,8 +70,8 @@ def getMultiFitParameterList(dataBatch, includeBackground=False):
         backgroundParameters = getLocalBackgroundParameters(xData, yData)
         fitParameters = np.append(parameterList[i], backgroundParameters)
         fitInputWeights = np.ones(len(xData))
-        fitResults = least_squares(pk.multilorentzresidual, fitParameters, \
-            ftol=1e-19, args=(xData, yData, fitInputWeights))
+        fitResults = safeLeastSquares(pk.multiLorentzResidualFit, fitParameters, \
+            args=(xData, yData, fitInputWeights))
         if not includeBackground:
             fitResults = fitResults.x[:-2]
         outputParameterArray = np.append(outputParameterArray, fitResults)

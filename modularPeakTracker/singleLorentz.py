@@ -1,9 +1,10 @@
 import numpy as np
 import modularLiveFit as fit
+import modularConfig as conf
 
 class SingleLorentz:
     def __init__(self, dataBatch):
-        self.localIndex = None
+        self.localIndex = dataBatch.lorentzCount
         self.dataBatch = dataBatch
         self.xBackgroundData = self.dataBatch.getData("all", None, "freq")
         self.yBackgroundData = self.dataBatch.getData("all", None, "r")
@@ -12,19 +13,81 @@ class SingleLorentz:
         self.skew = None
         self.fullWidthHalfMaximum = None
         self.hasBackground = False
-        self.leftDistance = np.inf
+        self.leftDistance = -np.inf
         self.rightDistance = np.inf
+        self.trueLeft = None
+        self.trueRight = None
+        self.xData = None
+        self.yData = None
+
+    def initialSetup(self, amplitude, peakFrequency, fullWidthHalfMaximum, \
+        skew):
+        if peakFrequency is None or fullWidthHalfMaximum is None:
+            self.peakFrequency = peakFrequency
+            self.fullWidthHalfMaximum = fullWidthHalfMaximum
+            self.skew = skew
+            self.amplitude = amplitude
+        else:
+            self.updateAmplitude(amplitude)
+            self.updatePeakFrequency(peakFrequency)
+            self.updateSkew(skew)
+            self.updateWidth(fullWidthHalfMaximum)
+        self.setupData()
+
+    def getID(self):
+        dataBatchMessage = "[dataBatch: " + str(self.dataBatch.index) + ", "
+        lorentzMessage = "lorentz: " + str(self.localIndex) + "]"
+        return "ID: " + dataBatchMessage + lorentzMessage
+
+    def copyLorentz(self, lorentz):
+        self.peakFrequency = lorentz.peakFrequency
+        self.amplitude = lorentz.amplitude
+        self.skew = lorentz.skew
+        self.fullWidthHalfMaximum = lorentz.fullWidthHalfMaximum
+        self.setupData()
 
     def setupData(self):
-        localMin = self.peakFrequency - 3 * self.fullWidthHalfMaximum
-        localMax = self.peakFrequency + 3 * self.fullWidthHalfMaximum
+        self.trueLeft = self.peakFrequency - \
+            (self.fullWidthHalfMaximum * conf.multiFitLimit)
+        self.trueRight = self.peakFrequency + \
+            (self.fullWidthHalfMaximum * conf.multiFitLimit)
+        self.dataFiltration(conf.widthExpansionBase)
+        self.dataTerms = {"freq": self.peakFrequency, "amp": self.amplitude, \
+            "skew": self.skew, "width": self.fullWidthHalfMaximum}
+
+    def dataFiltration(self, growthLevel="default", growPower=0):
+        if growthLevel == "default":
+            growthLevel = conf.widthExpansionBase
+        localMin = self.peakFrequency - \
+            (growthLevel * self.fullWidthHalfMaximum) ** \
+                (conf.widthExpansionRate * growPower)
+        localMax = self.peakFrequency + \
+            (growthLevel * self.fullWidthHalfMaximum) ** \
+                (conf.widthExpansionRate * growPower)
+        log = ()
+        # print("freqDif: " + str(localMax - localMin))
+        # print("localMin: " + str(localMin))
         self.minMax = (localMin, localMax)
         self.xData = self.dataBatch.getData(self.minMax, "point", "freq")
         self.yData = self.dataBatch.getData(self.minMax, "point", "r", "freq")
         self.localMin = localMin
         self.localMax = localMax
-        self.dataTerms = {"freq": self.peakFrequency, "amp": self.amplitude, \
-            "skew": self.skew, "width": self.fullWidthHalfMaximum}
+        if len(self.xData) < 4:
+            self.dataFiltration(growthLevel + 1, growPower + 1)
+
+    def updateAmplitude(self, newAmplitude):
+        self.amplitude = newAmplitude
+
+    def updatePeakFrequency(self, newPeakFrequency):
+        self.peakFrequency = newPeakFrequency
+        self.setupData()
+
+    def updateSkew(self, newSkew):
+        self.skew = newSkew
+
+    def updateWidth(self, newFullWidthHalfMaximum):
+        self.fullWidthHalfMaximum = newFullWidthHalfMaximum
+        self.setupData()
     
     def getParameter(self, parameterType):
         return self.dataTerms[parameterType]

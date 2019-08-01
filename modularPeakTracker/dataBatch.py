@@ -1,9 +1,16 @@
+import os
 import numpy as np
-import modularConfig as mc
+import modularConfig as conf
 import modularLiveFit as fit
+from nptdms import TdmsFile
 from singleLorentz import SingleLorentz
 
 class DataBatch:
+    '''
+    The primary storage method for a batch of data associated with a
+    particular temperature.
+    '''
+
     def __init__(self, parent):
         self.parent = parent
         self.index = None
@@ -16,30 +23,48 @@ class DataBatch:
         self.startTemp = None
         self.endTemp = None
         self.date = None
+        self.filePath = None
+        self.xData = None
+        self.yData = None
+        self.cryoData = None
+        self.colorFreqData = None
+        self.startTempVec = None
         self.additionalSetup()
 
-    def additionalSetup(self):
-        return
-
     def getSingleParameterList(self, parameterType):
+        '''
+        Returns a list containing numpy arrays of the Lorentzian parameters.
+        '''
         singleParameterList = []
         for lorentz in self.lorentzArray:
             singleParameterList.append(lorentz.getParameter(parameterType))
         return singleParameterList
 
     def searchTerm(self, dataType=None):
+        '''
+        Finds the data or value associated with the specific search term which
+        should be inputed as a string.
+        '''
         if dataType is None:
             return self.freqData
         else:
             return self.searchTerms[dataType]
 
     def searchDataPoint(self, val, dataType=None):
+        '''
+        Searches the array associated with the specified data type for the
+        value that best matches the input one specified.
+        '''
         dataArray = self.searchTerm(dataType)
         dataArray = np.abs(dataArray - val)
         index = dataArray.argmin()
         return index
 
     def searchDataPoints(self, vals, dataType=None):
+        '''
+        Searches the array associated with the specified data type for the
+        values that best match the input array specified.
+        '''
         vals = vals.tolist()
         indexes = []
         for val in vals:
@@ -47,6 +72,11 @@ class DataBatch:
         return np.array(indexes).astype(int)
 
     def getData(self, ref=None, guide=None, outType=None, refType=None):
+        '''
+        Takes in all sorts of inputs and returns either a numpy array of data
+        values or specific doubles of those values themselves based on input.
+        The shortcut keys for getData are as specified below:
+        '''
         targetArray = self.searchTerm(outType)
         if guide == "min":
             dataMin = 0
@@ -81,7 +111,11 @@ class DataBatch:
         singleLorentz.setIndex(self.lorentzCount)
         self.lorentzArray.append(singleLorentz)
         self.lorentzCount += 1
-        self.sortLorentz()
+        return singleLorentz
+
+    def addNewLorentz(self):
+        singleLorentz = SingleLorentz(self)
+        return self.addLorentz(singleLorentz)
 
     def sortLorentz(self):
         lorentzBuffer = sorted(self.lorentzArray, key=lambda lorentz: \
@@ -132,8 +166,8 @@ class DataBatch:
             for i in range(1, self.lorentzCount):
                 leftLorentz = self.lorentzArray[i - 1]
                 rightLorentz = self.lorentzArray[i]
-                leftMax = max(leftLorentz.xData)
-                rightMin = min(rightLorentz.xData)
+                leftMax = leftLorentz.trueRight
+                rightMin = rightLorentz.trueLeft
                 if leftMax >= rightMin:
                     lorentzSets[i - 1] |= lorentzSets[i]
                     lorentzSets[i] = lorentzSets[i - 1]
@@ -143,6 +177,7 @@ class DataBatch:
                 lorentzSets[i] = tuple(lorentzSets[i])
         lorentzSets = set(lorentzSets)
         lorentzSets = list(lorentzSets)
+        lorentzSets = sorted(lorentzSets, key=lambda set: set[0])
         return lorentzSets
 
     def getMultiParameters(self):
@@ -157,6 +192,10 @@ class DataBatch:
             parameterList.append(parameters)
         return parameterList
 
+    def getSplitParameters(self):
+        multiParamaterList = self.getMultiParameters
+        return self.splitParameterList(multiParamaterList)
+
     def getMultiFit(self):
         return fit.getMultiFitData(self)
 
@@ -170,6 +209,11 @@ class DataBatch:
             peakPositions.append(lorentz.peakFrequency)
         return peakPositions
 
+    def fitLorentz(self):
+        parameterList = fit.getMultiFitParameterList(self)
+        self.clearLorentz()
+        self.importLorentzFromParameterList(parameterList)
+
     def importLorentzFromParameterList(self, parameterList):
         parameterList = self.splitParameterList(parameterList)
         for parameters in parameterList:
@@ -177,6 +221,9 @@ class DataBatch:
             lorentz.setSingleParameters(parameters)
             self.addLorentz(lorentz)
         self.sortLorentz()
+
+    def importLorentzFromParameters(self, parameters):
+        self.importLorentzFromParameterList([parameters])
 
     def splitParameterList(self, parameterList):
         splitParameters = []
@@ -196,6 +243,74 @@ class DataBatch:
         self.sortLorentz()
 
     def importLorentzFromDataBatch(self, dataBatch):
-        parameterList = fit.getMultiFitParameterList(dataBatch)
-        self.importLorentzFromParameterList(parameterList)
+        for lorentz in dataBatch.lorentzArray:
+            newLorentz = self.addNewLorentz()
+            newLorentz.copyLorentz(lorentz)
+
+    def inheritData(self, dataBatch):
+            self.freqData = dataBatch.freqData
+            self.rData = dataBatch.rData
+            self.startTemp = dataBatch.startTemp
+            self.endTemp = dataBatch.endTemp
+            self.searchTerms["freq"] = self.freqData
+            self.searchTerms["r"] = self.rData
+            self.setIndex(dataBatch.index)
+
+    def additionalSetup(self):
+        self.searchTerms['x'] = self.xData
+        self.searchTerms['y'] = self.yData
+        self.searchTerms['cryo'] = self.cryoData
+        self.searchTerms['color'] = self.colorFreqData
+
+    def loadData(self, filePath, cleanBool=True):
+        fileName, ext = os.path.splitext(os.path.basename(filePath))
+        tdmsFile = TdmsFile(filePath)
+        date, time, startTemp, endTemp = fileName.split("_")
+        self.startTemp = float(startTemp[:-1])
+        self.endTemp = float(endTemp[:-1])
+        self.ext = ext
+        self.date = date
+        self.time = time
+        self.freqData = tdmsFile.object('Untitled', 'freq (Hz)').data
+        self.xData = tdmsFile.object('Untitled', 'X1 (V)').data
+        self.yData = tdmsFile.object('Untitled', 'Y1 (V)').data
+        self.cryoData = tdmsFile.object('Untitled', 'Cryostat temp (K)').data
+        if cleanBool == True:
+            fullSignal = np.stack((self.freqData, self.xData, self.yData))
+            cleanSignal = fullSignal[:, ~np.isnan(fullSignal).any(axis=0)]
+            self.freqData = cleanSignal[0]
+            self.xData = cleanSignal[1]
+            self.yData = cleanSignal[2]
+        else:
+            self.xData = interpolateNans(self.xData)
+            self.yData = interpolateNans(self.yData)
+            self.freqData = interpolateNans(self.freqData)
+        self.rData = np.sqrt(self.xData ** 2 + self.yData ** 2)
+        self.startTempVec = self.startTemp * np.ones(len(self.rData))
+        self.colorFreqData = self.freqData / 1000
+        self.dataCount = len(self.freqData)
+        self.refreshSearch()
+
+    def refreshSearch(self):
+        self.searchTerms['freq'] = self.freqData
+        self.searchTerms['r'] = self.rData
+        self.searchTerms['x'] = self.xData
+        self.searchTerms['y'] = self.yData
+        self.searchTerms['cryo'] = self.cryoData
+        self.searchTerms['color'] = self.colorFreqData
+
+    def copyDataBatch(self, dataBatch):
+        self.inheritData(dataBatch)
+        self.importLorentzFromDataBatch(dataBatch)
+        self.refreshSearch()
+
+def interpolateNans(inputArray):
+    if np.isnan(inputArray).any():
+        boolArray = ~np.isnan(inputArray)
+        goodIndices = boolArray.nonzero()[0]
+        goodPoints = inputArray[~np.isnan(inputArray)]
+        badIndices = np.isnan(inputArray).nonzero()[0]
+        inputArray[np.isnan(inputArray)] = \
+            np.interp(badIndices, goodIndices, goodPoints)
+    return inputArray
 

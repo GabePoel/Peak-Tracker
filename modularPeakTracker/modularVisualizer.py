@@ -27,6 +27,10 @@ class ModularVisualizer:
             command=self.displayBackground)
         quickButton = tk.Button(master=self.root, text="Quick Display", \
             command=self.fullPreviewDisplay)
+        saveButton = tk.Button(master=self.root, text="Save Current Peaks", \
+            command=self.saveParameters)
+        parameterButton = tk.Button(master=self.root, text="Load New Peaks", \
+            command=self.loadParameters)
         detectButton.pack(in_=self.controls, side="left")
         loadButton.pack(in_=self.controls, side="left")
         importButton.pack(in_=self.controls, side="left")
@@ -35,6 +39,8 @@ class ModularVisualizer:
         restartButton.pack(in_=self.controls, side="left")
         backgroundButton.pack(in_=self.controls, side="left")
         quickButton.pack(in_=self.controls, side="left")
+        saveButton.pack(in_=self.controls, side="left")
+        parameterButton.pack(in_=self.controls, side="left")
         self.prepWindow()
         self.runWindow()
 
@@ -74,6 +80,12 @@ class ModularVisualizer:
         self.closeWindow()
         import modularRestart
         modularRestart.restart()
+
+    def saveParameters(self):
+        self.parent.saveCurrentParameters()
+
+    def loadParameters(self):
+        self.parent.loadSavedParameters()
 
     def loadDataSet(self):
         self.ax.cla()

@@ -4,9 +4,9 @@ import matplotlib.patches as patches
 from matplotlib.widgets import RectangleSelector
 from matplotlib.widgets import Cursor
 from matplotlib.colors import to_hex
+from dataBatch import DataBatch
 from preDataBatch import PreDataBatch
-from postDataBatch import PostDataBatch
-from preSingleLorentz import PreSingleLorentz
+from singleLorentz import SingleLorentz
 
 class ModularManualPeakDetector:
     def __init__(self, parent, preDataBatch):
@@ -19,7 +19,6 @@ class ModularManualPeakDetector:
         self.lastAction = None
         self.fitPoints = None
         self.preDataBatch = preDataBatch
-        self.postDataBatch = None
         self.processedData = None
         self.rectList = []
         self.allowedActions = ["pick", "select"]
@@ -218,6 +217,7 @@ class ModularManualPeakDetector:
             for fit in fitList:
                 self.addToFitPoints(self.ax.plot(fit[0], fit[1], \
                     color=setColor))
+        self.parent.freshDataBuffer = self.preDataBatch
 
     def clearFitPoints(self):
         if self.fitPoints is not None:
@@ -231,6 +231,22 @@ class ModularManualPeakDetector:
             self.fitPoints = points
         else:
             self.fitPoints += points
+
+    def importParameters(self, parameters):
+        self.preDataBatch.importLorentzFromParameters(parameters)
+        for lorentz in self.preDataBatch.lorentzArray:
+            rect = GivenSelection()
+            rect.xDis = 2 * lorentz.fullWidthHalfMaximum
+            rect.yDis = lorentz.amplitude
+            rect.xPnt = lorentz.peakFrequency
+            rect.makeSingleLorentz(self.preDataBatch)
+            self.savedSelection.append(rect)
+            self.savedSelectionCount += 1
+        self.totalFitPlot('g')
+        self.canvas.draw()
+        self.allowedActions = ["finish"]
+        self.connect()
+        return self.processedData
 
 class GivenSelection:
     def __init__(self):
@@ -249,7 +265,7 @@ class GivenSelection:
         self.singleLorentz = None
 
     def makeSingleLorentz(self, dataBatch):
-        self.singleLorentz = PreSingleLorentz(dataBatch)
+        self.singleLorentz = SingleLorentz(dataBatch)
         self.singleLorentz.amplitude = self.yDis
         self.singleLorentz.skew = -self.singleLorentz.amplitude
         self.singleLorentz.peakFrequency = self.xPnt
