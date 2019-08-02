@@ -13,6 +13,11 @@ class ModularFitTracker:
         self.dataSet = parent.dataSet
         self.preDataBuffer = parent.processedDataBuffer
         self.totalDataBatches = len(self.dataSet.dataBatchArray)
+        if conf.quickTracking:
+            self.totalDataBatches = conf.quickTrackingLength
+            self.dataSet.dataNumber = conf.quickTrackingLength
+            self.dataSet.dataBatchArray = self.dataSet.dataBatchArray[0:\
+                conf.quickTrackingLength]
         self.fig = parent.fig
         self.ax = parent.ax
         self.canvas = parent.canvas
@@ -25,10 +30,12 @@ class ModularFitTracker:
     def track(self):
         self.prepDataSet()
         self.fitOverEveryDataBatch()
+        self.parent.getDataResults()
         self.parent.exportVideo()
         self.parent.exportConfig()
         self.parent.exportRunningLog()
         self.parent.exportParameters()
+        self.parent.exportDataTable()
 
     def prepDataSet(self):
         self.noiseLevel = util.noisePredictor(self.dataSet.getDataBatch(0))
@@ -56,9 +63,13 @@ class ModularFitTracker:
             self.plotDataBatch(targetDataBatch)
         if conf.exportImages:
             self.exportCurrentImage()
+        log = "Lorentz Costs:"
+        for lorentz in targetDataBatch.lorentzArray:
+            log += " - " + str(lorentz.fitCost)
+        self.parent.updateRunningLog(log, "COST_LOG")
 
     def predictReferenceDataBatch(self, dataBatch):
-        if conf.enableRateOfChangeTracking:
+        if conf.rateOfChangeTracking:
             if self.currentIndex == 0:
                 return dataBatch
             else:
@@ -73,7 +84,7 @@ class ModularFitTracker:
         if endIndex < 2:
             return lorentz
         else:
-            maxIndexSearch = min(endIndex, conf.rateOfChangeIndexMax)
+            maxIndexSearch = min(endIndex, conf.rateOfChangeLength)
             previousAmplitudes = np.array([])
             previousFrequencies = np.array([])
             previousSkews = np.array([])
@@ -282,8 +293,9 @@ class ModularFitTracker:
 
     def exportCurrentImage(self):
         if conf.exportImages:
+            decimals = len(str(self.totalDataBatches))
             frameNumber = str(self.currentIndex)
-            numZeros = 5 - len(frameNumber)
+            numZeros = decimals - len(frameNumber)
             frameName = "frame" + ("0" * numZeros) + frameNumber
             self.parent.exportPlot(frameName)
 

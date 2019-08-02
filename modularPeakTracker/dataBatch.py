@@ -275,6 +275,8 @@ class DataBatch:
         self.xData = tdmsFile.object('Untitled', 'X1 (V)').data
         self.yData = tdmsFile.object('Untitled', 'Y1 (V)').data
         self.cryoData = tdmsFile.object('Untitled', 'Cryostat temp (K)').data
+        self.startTemp = self.cryoData[0]
+        self.endTemp = self.cryoData[-1]
         if cleanBool == True:
             fullSignal = np.stack((self.freqData, self.xData, self.yData))
             cleanSignal = fullSignal[:, ~np.isnan(fullSignal).any(axis=0)]

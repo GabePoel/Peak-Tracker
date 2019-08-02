@@ -9,17 +9,21 @@ from modularManualPeakDetector import ModularManualPeakDetector
 from modularDataSet import ModularDataSet
 from modularVisualizer import ModularVisualizer
 from modularFitTracker import ModularFitTracker
+from modularDataAnalyzer import ModularDataAnalyzer
 
 class ModularApplication:
     def __init__(self):
         self.runningLog = "Running Log:\n\n"
         self.fig = Figure()
         self.ax = self.fig.add_subplot(111)
+        self.readyForTracking = False
         self.canvas = None
         self.currentProgress = 0
         self.dataSet = None
         self.freshDataBuffer = None
         self.processedDataBuffer = None
+        self.fullDataTable = None
+        self.simpleDataTable = None
         self.importDirectory = loadDefaultImportDirectory()
         self.exportDirectory = loadDefaultExportDirectory()
         self.currentExportFolder = self.updateExportFolder()
@@ -50,6 +54,14 @@ class ModularApplication:
         else:
             print("Ready to track")
             ModularFitTracker(self)
+
+    def getDataResults(self):
+        dataAnalyzer = ModularDataAnalyzer(self)
+        self.fullDataTable = \
+            dataAnalyzer.createFullDataTable(conf.dataExportHeaders)
+        self.simpleDataTable = \
+            dataAnalyzer.createSimpleDataTable(conf.dataExportHeaders)
+        dataAnalyzer.plotDataTable()
 
     def setExportDirectory(self, filePath):
         self.exportDirectory = filePath
@@ -97,6 +109,9 @@ class ModularApplication:
     
     def loadSavedParameters(self, name="default", location="default", \
         index=0):
+        if self.readyForTracking:
+            self.loadDataSet()
+        self.readyForTracking = True
         importLocation = self.importDirectory
         importName = 'parameterExport.csv'
         if location != "default":
@@ -107,7 +122,36 @@ class ModularApplication:
         parameters = np.genfromtxt(importFilePath, delimiter=",")
         freshData = self.dataSet.getDataBatch(index)
         detection = ModularManualPeakDetector(self, freshData)
-        detection.importParameters(parameters)        
+        detection.importParameters(parameters)
+
+    def exportDataTable(self, dataBuffer="default", name="default", \
+        location="default"):
+        exportLocation = location
+        exportName = name
+        exportData = dataBuffer
+        if location == "default":
+            exportLocation = self.currentExportFolder
+        if name == "default":
+            exportName = "lorentzExport"
+        if dataBuffer == "default":
+            exportData = self.fullDataTable
+            simpleExportData = self.simpleDataTable
+        if conf.exportDataComplex:
+            targetFolder = os.path.join(exportLocation, "exportLorentzians")
+            if not ("exportLorentzians" in os.listdir(exportLocation)):
+                os.makedirs(targetFolder)
+            decimals = len(str(len(exportData)))
+            for i in range(0, len(exportData)):
+                numZeros = decimals - len(str(i))
+                lorentzName = exportName + ("0" * numZeros) + str(i) + ".csv"
+                exportFilePath = os.path.join(targetFolder, lorentzName)
+                np.savetxt(exportFilePath, exportData[i], delimiter=",", \
+                    fmt='%s')
+        if conf.exportDataSimple:
+            exportFilePath = os.path.join(exportLocation, \
+                'frequencyResultsExport.csv')
+            np.savetxt(exportFilePath, self.simpleDataTable, delimiter=",", \
+                fmt='%s')
 
     def exportParameters(self, parameterBuffer="default", name="default", \
         location="default"):
@@ -200,7 +244,12 @@ def loadDefaultImportDirectory():
 def loadDefaultExportDirectory():
     root = os.getcwd()
     exportDirectory = os.path.join(root, "defaultExportDirectory")
-    if conf.defaultExportDirectory != "default":
+    if conf.defaultExportDirectory == "local":
+        exportDirectory = os.path.expanduser('~/Documents')
+        if not ("Peak Tracker Exports" in os.listdir(exportDirectory)):
+            os.makedirs(os.path.join(exportDirectory, "Peak Tracker Exports"))
+        exportDirectory = os.path.join(exportDirectory, "Peak Tracker Exports")
+    elif conf.defaultExportDirectory != "default":
         exportDirectory = conf.defaultExportDirectory
     return exportDirectory
 

@@ -19,6 +19,7 @@ class SingleLorentz:
         self.trueRight = None
         self.xData = None
         self.yData = None
+        self.fitCost = None
 
     def initialSetup(self, amplitude, peakFrequency, fullWidthHalfMaximum, \
         skew):
@@ -64,9 +65,6 @@ class SingleLorentz:
         localMax = self.peakFrequency + \
             (growthLevel * self.fullWidthHalfMaximum) ** \
                 (conf.widthExpansionRate * growPower)
-        log = ()
-        # print("freqDif: " + str(localMax - localMin))
-        # print("localMin: " + str(localMin))
         self.minMax = (localMin, localMax)
         self.xData = self.dataBatch.getData(self.minMax, "point", "freq")
         self.yData = self.dataBatch.getData(self.minMax, "point", "r", "freq")

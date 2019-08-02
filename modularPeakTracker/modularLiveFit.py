@@ -11,7 +11,7 @@ def safeLeastSquares(fit, parameters, args=None):
     xtol = conf.terminationIndependentTolerance
     warnings.simplefilter(action='ignore', category=FutureWarning)
     return least_squares(fit, parameters, ftol=ftol, gtol=gtol, xtol=xtol, \
-        args=args)
+        args=args, method=conf.leastSquaresMethod)
 
 def getLocalBackgroundParameters(xData, yData):
     defaultOffset = np.mean(yData[0] + yData[len(yData) - 1])
@@ -32,7 +32,8 @@ def getFitData(singleLorentz, xData):
     fitParameters = np.append(fitParameters, backgroundParameters)
     fitInputWeights = np.ones(len(xData))
     fitResults = least_squares(pk.multiLorentzResidualFit, fitParameters,  \
-         ftol=1e-10, args=(xData, yData, fitInputWeights))
+        ftol=1e-10, args=(xData, yData, fitInputWeights), \
+            method=conf.leastSquaresMethod)
     yFitData = pk.multiLorentzFit(fitResults.x, xData)
     return yFitData
 
@@ -54,6 +55,8 @@ def getMultiFitData(dataBatch):
             args=(xData, yData, fitInputWeights))
         yFitData = pk.multiLorentzFit(fitResults.x, xData)
         fitList.append((xData, yFitData))
+        for j in lorentzList[i]:
+            dataBatch.lorentzArray[j].fitCost = fitResults.cost
     return fitList
 
 def getMultiFitParameterList(dataBatch, includeBackground=False):
