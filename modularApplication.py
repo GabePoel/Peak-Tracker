@@ -228,11 +228,15 @@ class ModularApplication:
         video.release()
         cv2.destroyAllWindows()
 
-    def exportPlot(self, name):
-        targetFolder = os.path.join(self.currentExportFolder, "exportImages")
-        if not ("exportImages" in os.listdir(self.currentExportFolder)):
-            os.makedirs(targetFolder)
-        self.fig.savefig(targetFolder + "/" + str(name))
+    def exportPlot(self, name, location="default"):
+        if location == "default":
+            targetFolder = os.path.join(self.currentExportFolder, "exportImages")
+            if not ("exportImages" in os.listdir(self.currentExportFolder)):
+                os.makedirs(targetFolder)
+        else:
+            targetFolder = location
+        exportFileName = os.path.join(targetFolder, str(name))
+        self.fig.savefig(exportFileName)
 
 def loadDefaultImportDirectory():
     root = os.getcwd()

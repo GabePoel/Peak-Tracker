@@ -1,3 +1,0 @@
-T set (K)	Time from start (min)
-300	0  
-5	3994

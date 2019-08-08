@@ -36,6 +36,8 @@ class ModularFitTracker:
         self.parent.exportRunningLog()
         self.parent.exportParameters()
         self.parent.exportDataTable()
+        if conf.exportFinalTrends:
+            self.parent.exportPlot("results", self.parent.currentExportFolder)
 
     def prepDataSet(self):
         self.noiseLevel = util.noisePredictor(self.dataSet.getDataBatch(0))
