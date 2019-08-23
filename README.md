@@ -10,9 +10,15 @@ To edit any of the tracking, fitting, export, debugging, or any other criteria, 
 
 Peak Tracker comes with a pre-loaded set of data to experiment with before plugging in your own. Before you load up your own RUS data and get frustrated trying to figure out how to make Peak Tracker work, it's recommended that you follow along with this guide which goes through the basics of how to use Peak Tacker with this initialized default data.
 
-To start Peak Tracker, run the 'run.py' file in the Peak-Tracker directory. It should pull up a window that looks something like the following.
+To start Peak Tracker, run the 'run.py' file in the Peak-Tracker directory. It should pull up a window that looks something like the following. The interface is made using TkInter and the exact look/feel will vary depending on your OS and desktop environment.
 
+![Blank Window](https://raw.githubusercontent.com/GabePoel/Peak-Tracker/master/images/blankWindow.png)
 
+From here you can either load your own data or use the latest saved/pre-loaded data. To load a new set of data, press the cleverly named 'Load Data' button. If you click 'Load Data' a window like the following should pop up.
+
+![Directory Selection Window](https://raw.githubusercontent.com/GabePoel/Peak-Tracker/master/images/activeDirectory.png)
+
+From here you should nav
 
 ## Interface Controls
 
