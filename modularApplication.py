@@ -40,7 +40,7 @@ class ModularApplication:
         self.processedDataBuffer = detection.getProcessedData()
 
     def loadDataSet(self):
-        tdmsDirectory = os.path.join(self.importDirectory, "tdmsData")
+        tdmsDirectory = self.importDirectory
         self.dataSet = ModularDataSet(tdmsDirectory)
         self.freshDataBuffer = self.dataSet.getDataBatch(0)
         x = self.freshDataBuffer.getData("all", None, "freq")
@@ -65,6 +65,7 @@ class ModularApplication:
 
     def setExportDirectory(self, filePath):
         self.exportDirectory = filePath
+        self.currentExportFolder = self.updateExportFolder()
 
     def setImportDirectory(self, filePath):
         self.importDirectory = filePath
@@ -79,10 +80,11 @@ class ModularApplication:
         exportFolders = os.listdir(exportLocation)
         existingExportNumbers = []
         for folder in exportFolders:
-            try:
-                existingExportNumbers.append(int(folder[6:]))
-            except:
-                pass
+            if folder.startswith('export'):
+                try:
+                    existingExportNumbers.append(int(folder[6:]))
+                except:
+                    pass
         if len(existingExportNumbers) == 0:
             thisExportNumber = 1
         else:
@@ -240,7 +242,7 @@ class ModularApplication:
 
 def loadDefaultImportDirectory():
     root = os.getcwd()
-    importDirectory = os.path.join(root, "defaultImportDirectory")
+    importDirectory = os.path.join(root, "defaultImportDirectory/tdmsData")
     if conf.defaultImportDirectory != "default":
         importDirectory = conf.defaultImportDirectory
     return importDirectory
