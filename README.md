@@ -177,6 +177,10 @@ If you just want to briefly see how the parameters you configure work with the d
 
 This determines the number of temperature data points Peak Tracker analyzes while quick tracking. The data starts analyzing from the first temperature just as it does with a full tracking, but stops in finite time. This could also be helpful for getting a sense of how long Peak Tracker may take to run given your current configuration.
 
+#### reverseTrackingOrder
+
+Enables tracking from high temperature to low temperature. This defaults to `False` in which tracking is done from low temperature to high temperature.
+
 #### noiseFilterLevel
 
 Noise filtering doesn't actually reduce the background noise of the given data. Instead, it looks at the tracked Lorentzians and determines if they shrink so much that they are at a scale such that they are indestinguishable from the backgroudn noise. Often times even if a Lorentzian could be easily made out by a human eye, the noise will be large enough that least square fit will converge on a value that includes some piece of the noise and just thinks the phase of the Lorentzian changed drastically. That's why the default noiseFilterLevel is set to the relatively high value of `4`.
@@ -194,6 +198,14 @@ This sets how many previous data points are looked over when determing the predi
 #### rateOfChangeTracking
 
 This enables or disables taking the rate of change into consideration when constructing the reference Lorentzian parameters.
+
+#### trackingStartValue
+
+Enter `"start"`, `"end"`, or an integer value. This determines the index of the lowest temperature tracked over. If you set `reverseTrackingOrder` to `True` then this determines the last value tracked.
+
+#### trackingEndValue
+
+Enter `"start"`, `"end"`, or an integer value. This determines the index of the highest temperature tracked over. If you set `reverseTrackingOrder` to `True` then this determines the first value tracked. And if `trackingStartValue` is set to a higher value than `trackingEndValue` then `trackingEndValue` defaults to whatever `trackingStartValue` is set to and only one data point is tracked.
 
 #### widthExpansionBase
 

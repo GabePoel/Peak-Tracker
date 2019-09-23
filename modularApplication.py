@@ -16,6 +16,8 @@ class ModularApplication:
         self.runningLog = "Running Log:\n\n"
         self.fig = Figure()
         self.ax = self.fig.add_subplot(111)
+        self.startIndex = None
+        self.endIndex = None
         self.readyForTracking = False
         self.canvas = None
         self.currentProgress = 0
@@ -42,11 +44,33 @@ class ModularApplication:
     def loadDataSet(self):
         tdmsDirectory = self.importDirectory
         self.dataSet = ModularDataSet(tdmsDirectory)
+        self.startIndex = self.setStartIndex()
+        self.endIndex = self.setEndIndex()
+        self.dataSet.truncateDataBatch(self.startIndex, self.endIndex)
+        if conf.reverseTrackingOrder:
+            self.dataSet.reverseDataBatch()
         self.freshDataBuffer = self.dataSet.getDataBatch(0)
         x = self.freshDataBuffer.getData("all", None, "freq")
         y = self.freshDataBuffer.getData("all", None, "r")
         self.ax.plot(x, y)
         self.canvas.draw()
+
+    def setStartIndex(self):
+        if conf.trackingStartValue == "start":
+            return 0
+        elif conf.trackingStartValue == "end":
+            return self.dataSet.dataNumber
+        else:
+            return conf.trackingStartValue
+    
+    def setEndIndex(self):
+        if conf.trackingEndValue == "start":
+            endIndex = 0
+        elif conf.trackingEndValue == "end":
+            endIndex = self.dataSet.dataNumber
+        else:
+            endIndex = conf.trackingEndValue
+        return max(self.startIndex, endIndex)
 
     def runTracker(self):
         if self.processedDataBuffer is None:

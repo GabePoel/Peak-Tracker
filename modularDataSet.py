@@ -52,3 +52,11 @@ class ModularDataSet:
             returnDataBatch = self.dataBatchArray[index]
         returnDataBatch.index = index
         return returnDataBatch
+
+    def truncateDataBatch(self, startIndex, endIndex):
+        endIndex = max(startIndex, endIndex)
+        self.dataBatchArray = self.dataBatchArray[startIndex:endIndex]
+        self.dataNumber = endIndex - startIndex
+
+    def reverseDataBatch(self):
+        self.dataBatchArray = self.dataBatchArray[::-1]

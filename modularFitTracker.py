@@ -13,6 +13,7 @@ class ModularFitTracker:
         self.dataSet = parent.dataSet
         self.preDataBuffer = parent.processedDataBuffer
         self.totalDataBatches = len(self.dataSet.dataBatchArray)
+        # self.truncateTrackingRegion
         if conf.quickTracking:
             self.totalDataBatches = conf.quickTrackingLength
             self.dataSet.dataNumber = conf.quickTrackingLength
@@ -26,6 +27,23 @@ class ModularFitTracker:
         self.typicalLorentz = None
         self.noiseLevel = None
         self.track()
+
+    def truncateTrackingRegion(self):
+        if conf.trackingStartValue == "start":
+            startIndex = 0
+        elif conf.trackingStartValue == "end":
+            startIndex = self.totalDataBatches
+        else:
+            startIndex = conf.trackingStartValue
+        if conf.trackingEndValue == "start":
+            endIndex = 0
+        elif conf.trackingEndValue == "end":
+            endIndex = self.totalDataBatches
+        else:
+            endIndex = conf.trackingEndValue
+        endIndex = max(startIndex, endIndex)
+        self.dataSet.dataBatchArray = self.dataSet.dataBatchArray[startIndex:\
+            endIndex]
 
     def track(self):
         self.prepDataSet()
