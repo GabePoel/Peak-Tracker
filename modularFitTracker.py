@@ -306,7 +306,10 @@ class ModularFitTracker:
             self.ax.plot(fit[0], fit[1], color='r')
         self.ax.plot(xPeaks, yPeaks, 'x', color='g')
         if conf.noiseFilterDisplay:
-            ySmooth = savgol_filter(yBackground, 53, 3)
+            if conf.noiseFilterSmoothing:
+                ySmooth = savgol_filter(yBackground, 53, 3)
+            else:
+                ySmooth = yBackground
             self.ax.plot(xBackground, ySmooth + self.noiseLevel, color='y')
             self.ax.plot(xBackground, ySmooth - self.noiseLevel, color='y')
         self.canvas.draw()

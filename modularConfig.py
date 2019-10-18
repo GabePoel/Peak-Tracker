@@ -33,6 +33,7 @@ loadDirectory = "default" #"default" or directory path
 multiFitLimit = 2
 noiseFilterDisplay = True
 noiseFilterLevel = 4
+noiseFilterSmoothing = False
 peakSeparationFactor = 50
 peakPlotBackgroundColor = 'b'
 peakPlotFitColor = 'r'
