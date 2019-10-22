@@ -5,11 +5,12 @@ import trackingUtilities as util
 from singleLorentz import SingleLorentz
 from dataBatch import DataBatch
 from scipy.signal import savgol_filter
+from pylab import text
 
 class ModularFitTracker:
     def __init__(self, parent):
         self.parent = parent
-        self.currentIndex = 1
+        self.currentIndex = 0
         self.dataSet = parent.dataSet
         self.preDataBuffer = parent.processedDataBuffer
         self.totalDataBatches = len(self.dataSet.dataBatchArray)
@@ -68,10 +69,18 @@ class ModularFitTracker:
         self.dataSet.maxFrequency = self.maxFrequency
 
     def fitOverEveryDataBatch(self):
+        self.fitOverFirstDataBatch()
         for i in range(1, self.totalDataBatches):
             self.currentIndex = i
             self.fitOverSingleDataBatch(i)
         print("Done with the fitting.")
+
+    def fitOverFirstDataBatch(self):
+        targetDataBatch = self.dataSet.dataBatchArray[0]
+        if conf.liveUpdate:
+            self.plotDataBatch(targetDataBatch)
+        if conf.exportImages:
+            self.exportCurrentImage()
 
     def fitOverSingleDataBatch(self, index, mode="automatic"):
         referenceDataBatch, targetDataBatch = \
@@ -279,9 +288,9 @@ class ModularFitTracker:
     def getDataBatchesForIndex(self, index):
         targetDataBatch = self.dataSet.dataBatchArray[index]
         if index == 0:
-            referenceDataBatch = self.preDataBuffer
-            previousDataBatch = self.preDataBuffer
-            targetDataBatch.importLorentzFromDataBatch(previousDataBatch)
+            referenceDataBatch = self.dataSet.dataBatchArray[0]
+            previousDataBatch = self.dataSet.dataBatchArray[0]
+            targetDataBatch.importLorentzFromDataBatch(previousDataBatch) #this doesn't work
         else:
             previousDataBatch = self.dataSet.dataBatchArray[index - 1]
             targetDataBatch.importLorentzFromDataBatch(previousDataBatch)
@@ -306,12 +315,26 @@ class ModularFitTracker:
             self.ax.plot(fit[0], fit[1], color='r')
         self.ax.plot(xPeaks, yPeaks, 'x', color='g')
         if conf.noiseFilterDisplay:
+            ySmooth = yBackground
             if conf.noiseFilterSmoothing:
-                ySmooth = savgol_filter(yBackground, 53, 3)
-            else:
-                ySmooth = yBackground
+                ySmooth = savgol_filter(ySmooth, 53, 3)
+            if conf.noiseFilterFlat:
+                for fit in fitList:
+                    xData = fit[0]
+                    yLeft = ySmooth[np.where(xBackground == xData[0])]
+                    yRight = ySmooth[np.where(xBackground == xData[-1])]
+                    yData = fit[1]
+                    xRef = np.array([xData[0], xData[-1]])
+                    yRef = np.array([yLeft, yRight])
+                    connection = np.polyfit(xRef, yRef, 1)
+                    for x in xData:
+                        i = np.where(xBackground == x)
+                        pre = ySmooth[i]
+                        ySmooth[i] = connection[1] + (x * connection[0])
             self.ax.plot(xBackground, ySmooth + self.noiseLevel, color='y')
             self.ax.plot(xBackground, ySmooth - self.noiseLevel, color='y')
+            if conf.displayTemp:
+                self.canvas.annotate("Test String", xy=(0.1,0.1))
         self.canvas.draw()
 
     def exportCurrentImage(self):

@@ -1,3 +1,4 @@
+import modularConfig as conf
 import tkinter as tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
@@ -55,6 +56,10 @@ class ModularVisualizer:
         self.toolbar = NavigationToolbar2Tk(self.canvas, self.root)
         self.toolbar.update()
         self.canvas._tkcanvas.pack()
+        if conf.quickLoadDirectory:
+            self.loadDataSet()
+        if conf.quickLoadParameters:
+            self.loadParameters()
 
     def displayBackground(self):
         self.parent.circlePreview()

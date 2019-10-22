@@ -26,6 +26,7 @@ class ModularApplication:
         self.processedDataBuffer = None
         self.fullDataTable = None
         self.simpleDataTable = None
+        self.cacheDirectory = loadDefaultCacheDirectory()
         self.importDirectory = loadDefaultImportDirectory()
         self.exportDirectory = loadDefaultExportDirectory()
         self.currentExportFolder = self.updateExportFolder()
@@ -93,6 +94,12 @@ class ModularApplication:
 
     def setImportDirectory(self, filePath):
         self.importDirectory = filePath
+        print(self.cacheDirectory)
+        importLocation = os.path.join(self.cacheDirectory, "importLocation.txt")
+        importString = open(importLocation, 'w')
+        importString.truncate(0)
+        importString.write(filePath)
+        importString.close()
 
     def setDataSet(self, dataSet):
         self.dataSet = dataSet
@@ -132,7 +139,8 @@ class ModularApplication:
     def saveCurrentParameters(self):
         parameterBuffer = self.freshDataBuffer.getAllParameters()
         self.exportParameters(parameterBuffer, location=self.importDirectory)
-    
+        self.exportParameters(parameterBuffer, location=self.cacheDirectory)
+
     def loadSavedParameters(self, name="default", location="default", \
         index=0):
         if self.readyForTracking:
@@ -264,11 +272,24 @@ class ModularApplication:
         exportFileName = os.path.join(targetFolder, str(name))
         self.fig.savefig(exportFileName)
 
-def loadDefaultImportDirectory():
+def loadDefaultCacheDirectory():
     root = os.getcwd()
-    importDirectory = os.path.join(root, "defaultImportDirectory/tdmsData")
-    if conf.defaultImportDirectory != "default":
-        importDirectory = conf.defaultImportDirectory
+    cacheDirectory = os.path.join(root, "workingCache")
+    print(cacheDirectory)
+    return cacheDirectory
+
+def loadDefaultImportDirectory():
+    if conf.quickLoadDirectory:
+        cacheDirectory = loadDefaultCacheDirectory()
+        importLocation = os.path.join(cacheDirectory, "importLocation.txt")
+        importString = open(importLocation, 'r')
+        importDirectory = importString.read()
+        importString.close()
+    else:
+        root = os.getcwd()
+        importDirectory = os.path.join(root, "defaultImportDirectory/tdmsData")
+        if conf.defaultImportDirectory != "default":
+            importDirectory = conf.defaultImportDirectory
     return importDirectory
 
 def loadDefaultExportDirectory():
