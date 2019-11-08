@@ -8,6 +8,7 @@ class SingleLorentz:
         self.dataBatch = dataBatch
         self.xBackgroundData = self.dataBatch.getData("all", None, "freq")
         self.yBackgroundData = self.dataBatch.getData("all", None, "r")
+        self.lorentzName = "Ryan"
         self.peakFrequency = None
         self.amplitude = None
         self.skew = None
@@ -56,7 +57,7 @@ class SingleLorentz:
         self.dataTerms = {"freq": self.peakFrequency, "amp": self.amplitude, \
             "skew": self.skew, "width": self.fullWidthHalfMaximum}
 
-    def dataFiltration(self, growthLevel="default", growPower=0):
+    def dataFiltration(self, growthLevel="default", growPower=1):
         if growthLevel == "default":
             growthLevel = conf.widthExpansionBase
         localMin = self.peakFrequency - \

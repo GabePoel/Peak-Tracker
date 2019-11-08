@@ -85,9 +85,15 @@ class DataBatch:
             dataMin = self.dataCount - 1
             dataMax = dataMin + 1
         elif ref == "local":
-            firstLorentz = self.lorentzArray[0]
-            lastLorentz = self.lorentzArray[self.lorentzCount - 1]
-            extraSpace = max(self.getSingleParameterList("width"))
+            def getLocalMin(lorentz):
+                return lorentz.localMin
+            def getLocalMax(lorentz):
+                return lorentz.localMax
+            earlyLorentzSortedArray = sorted(self.lorentzArray, key=getLocalMin)
+            lateLorentzSortedArray = sorted(self.lorentzArray, key=getLocalMax, reverse=True)
+            firstLorentz = earlyLorentzSortedArray[0]
+            lastLorentz = lateLorentzSortedArray[0]
+            extraSpace = 5 * max(self.getSingleParameterList("width"))
             leftFrequency = firstLorentz.localMin - extraSpace
             rightFrequency = lastLorentz.localMax + extraSpace
             ref = (leftFrequency, rightFrequency)
@@ -163,14 +169,15 @@ class DataBatch:
             lorentzSets = []
             for lorentz in self.lorentzArray:
                 lorentzSets.append(set([lorentz.localIndex]))
-            for i in range(1, self.lorentzCount):
-                leftLorentz = self.lorentzArray[i - 1]
-                rightLorentz = self.lorentzArray[i]
-                leftMax = leftLorentz.trueRight
-                rightMin = rightLorentz.trueLeft
-                if leftMax >= rightMin:
-                    lorentzSets[i - 1] |= lorentzSets[i]
-                    lorentzSets[i] = lorentzSets[i - 1]
+            if not conf.forceSingleLorentz:
+                for i in range(1, self.lorentzCount):
+                    leftLorentz = self.lorentzArray[i - 1]
+                    rightLorentz = self.lorentzArray[i]
+                    leftMax = leftLorentz.trueRight
+                    rightMin = rightLorentz.trueLeft
+                    if leftMax >= rightMin:
+                        lorentzSets[i - 1] |= lorentzSets[i]
+                        lorentzSets[i] = lorentzSets[i - 1]
             for i in range(0, len(lorentzSets)):
                 lorentzSets[i] = list(lorentzSets[i])
                 lorentzSets[i].sort()
@@ -181,6 +188,8 @@ class DataBatch:
         return lorentzSets
 
     def getMultiParameters(self):
+        # print("get lorentz name: " + str(self.lorentzArray[0].lorentzName))
+        # print("get parameterList: " + str(self.lorentzArray[0].getSingleParameters()))
         self.sortLorentz()
         lorentzSets = self.groupLorentz()
         parameterList = []
@@ -213,14 +222,19 @@ class DataBatch:
         parameterList = fit.getMultiFitParameterList(self)
         self.clearLorentz()
         self.importLorentzFromParameterList(parameterList)
+        # print("parameterList confirmation: " + str(parameterList))
 
     def importLorentzFromParameterList(self, parameterList):
         parameterList = self.splitParameterList(parameterList)
+        # print("parameterList: " + str(parameterList))
         for parameters in parameterList:
             lorentz = SingleLorentz(self)
             lorentz.setSingleParameters(parameters)
+            lorentz.lorentzName = "Bruce"
             self.addLorentz(lorentz)
         self.sortLorentz()
+        # print("set lorentz name: " + str(self.lorentzArray[0].lorentzName))
+        # print("set parameterList: " + str(self.lorentzArray[0].getSingleParameters()))
 
     def importLorentzFromParameters(self, parameters):
         self.importLorentzFromParameterList([parameters])

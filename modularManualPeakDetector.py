@@ -1,5 +1,5 @@
+import copy
 import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.widgets import RectangleSelector
 from matplotlib.widgets import Cursor
@@ -35,10 +35,14 @@ class ModularManualPeakDetector:
     def setupPeakDetector(self):
         freqData = self.preDataBatch.getData("all", None, "freq")
         rData = self.preDataBatch.getData("all", None, "r")
+        xLim = self.ax.get_xlim()
+        yLim = self.ax.get_ylim()
         self.ax.cla()
         self.ax.plot(freqData, rData, picker=5, color='595959')
         self.cursor = Cursor(self.ax, useblit=True, color='0.5', \
             linewidth=1, linestyle=":")
+        self.ax.set_xlim(xLim)
+        self.ax.set_ylim(yLim)
         self.canvas.draw()
         self.ax.autoscale(enable=False)
 
@@ -110,6 +114,24 @@ class ModularManualPeakDetector:
             self.savedSelectionBuffer = None
             self.allowedActions = ["pick", "select", "delete", "finish", \
                 "restart"]
+        elif event.key == 'd' and "delete" in self.allowedActions:
+            self.clearFitPoints()
+            self.lastAction = "right"
+            self.savedSelection = rotate(self.savedSelection, 1)
+            rect = self.savedSelection.pop()
+            self.totalFitPlot('g')
+            self.savedSelection.append(rect)
+            self.singleFitPlot(rect)
+            self.canvas.draw()
+        elif event.key == 'a' and "delete" in self.allowedActions:
+            self.clearFitPoints()
+            self.lastAction = "left"
+            self.savedSelection = rotate(self.savedSelection, -1)
+            rect = self.savedSelection.pop()
+            self.totalFitPlot('g')
+            self.savedSelection.append(rect)
+            self.singleFitPlot(rect)
+            self.canvas.draw()
         elif event.key == 'backspace' and "delete" in self.allowedActions:
             self.lastAction = "delete"
             rect = self.savedSelection.pop()
@@ -206,6 +228,17 @@ class ModularManualPeakDetector:
             rect.points = self.ax.plot(rect.xPnt, rect.yPnt, 'x', \
                 color=setColor)
 
+    def singleFitPlot(self, rect, setColor='b'):
+        if rect.hasLorentz:
+            tempDataBatch = copy.deepcopy(self.preDataBatch)
+            tempDataBatch.clearLorentz()
+            tempDataBatch.addLorentz(rect.singleLorentz)
+            if tempDataBatch.hasLorentz():
+                fitList = tempDataBatch.getMultiFit()
+                for fit in fitList:
+                    self.addToFitPoints(self.ax.plot(fit[0], fit[1], \
+                        color=setColor))
+
     def totalFitPlot(self, setColor='r'):
         self.preDataBatch.clearLorentz()
         self.clearFitPoints()
@@ -244,7 +277,8 @@ class ModularManualPeakDetector:
             self.savedSelectionCount += 1
         self.totalFitPlot('g')
         self.canvas.draw()
-        self.allowedActions = ["finish"]
+        self.allowedActions = ["pick", "select", "delete", "finish", \
+            "restart"]
         self.connect()
         return self.processedData
 
@@ -272,3 +306,6 @@ class GivenSelection:
         self.singleLorentz.fullWidthHalfMaximum = self.xDis / 2
         self.singleLorentz.setupData()
         self.hasLorentz = True
+
+def rotate(l, n):
+    return l[n:] + l[:n]

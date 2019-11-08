@@ -11,6 +11,7 @@ class ModularFitTracker:
     def __init__(self, parent):
         self.parent = parent
         self.currentIndex = 0
+        self.indexChecker = False
         self.dataSet = parent.dataSet
         self.preDataBuffer = parent.processedDataBuffer
         self.totalDataBatches = len(self.dataSet.dataBatchArray)
@@ -72,11 +73,14 @@ class ModularFitTracker:
         self.fitOverFirstDataBatch()
         for i in range(1, self.totalDataBatches):
             self.currentIndex = i
+            if self.currentIndex > 1:
+                self.indexChecker = True
             self.fitOverSingleDataBatch(i)
         print("Done with the fitting.")
 
     def fitOverFirstDataBatch(self):
         targetDataBatch = self.dataSet.dataBatchArray[0]
+        # print(targetDataBatch.lorentzArray[0].getSingleParameters(0))
         if conf.liveUpdate:
             self.plotDataBatch(targetDataBatch)
         if conf.exportImages:
@@ -86,8 +90,8 @@ class ModularFitTracker:
         referenceDataBatch, targetDataBatch = \
             self.getDataBatchesForIndex(index)
         targetDataBatch.fitLorentz()
-        targetDataBatch = self.correctTargetDataBatch(referenceDataBatch, \
-            targetDataBatch)
+        targetDataBatch = self.correctTargetDataBatch(referenceDataBatch, targetDataBatch)
+        self.setDataBatchForIndex(index, targetDataBatch)
         if conf.liveUpdate:
             self.plotDataBatch(targetDataBatch)
         if conf.exportImages:
@@ -211,28 +215,52 @@ class ModularFitTracker:
         widthShrink = (referenceWidth > conf.widthShrinkLimit * targetWidth)
         if widthGrow or widthShrink:
             logMessage = "Width correction at " + targetLorentz.getID()
+            logMessage += "\n    Reference Width: " + str(referenceWidth)
+            logMessage += "\n    Target Width: " + str(targetWidth)
+            if widthGrow:
+                logMessage += "\n    Width grew too much between time steps."
+                logMessage += "\n    Allowed Width Growth Factor: " + str(conf.widthGrowLimit)
+                logMessage += "\n    Problematic Width Growth Factor: " + str(targetWidth / referenceWidth)
+            if widthShrink:
+                logMessage += "\n    Width shrunk too much between time steps."
+                logMessage += "\n    Allowed Width Shrink Factor: " + str(conf.widthShrinkLimit)
+                logMessage += "\n    Problematic Width Shrink Factor: " + str(referenceWidth / targetWidth)
             self.parent.updateRunningLog(logMessage, "WIDTH_CORRECTION")
-            # targetLorentz.updatePeakFrequency(referenceLorentz.peakFrequency)
             targetLorentz.updateWidth(referenceWidth)
-            targetLorentz.updateAmplitude(referenceLorentz.amplitude)
-            targetLorentz.updateSkew(referenceLorentz.skew)
+            # targetLorentz.updateAmplitude(referenceLorentz.amplitude)
+            # targetLorentz.updateSkew(referenceLorentz.skew)
             
     def correctSingleLorentzAmplitude(self, referenceLorentz, targetLorentz):
         referenceAmplitude = referenceLorentz.amplitude
-        targetAmplitude = targetLorentz.amplitude
+        targetAmplitude = np.abs(targetLorentz.amplitude)
         amplitudeGrowAmount = targetAmplitude / referenceAmplitude
         amplitudeShrinkAmount = referenceAmplitude / targetAmplitude
         amplitudeGrow = (conf.amplitudeGrowLimit < amplitudeGrowAmount)
         amplitudeShrink = (conf.amplitudeShrinkLimit < amplitudeShrinkAmount)
-        amplitudeCutoff = (targetAmplitude < 2 * self.noiseLevel)
-        if any([amplitudeGrow, amplitudeShrink]):
+        amplitudeCutoff = (targetAmplitude < 2 * conf.noiseFilterLevel * self.noiseLevel)
+        if (any([amplitudeGrow, amplitudeShrink]) and self.indexChecker):
             logMessage = "Amplitude correction at " + targetLorentz.getID()
+            logMessage += "\n    Reference Amplitude: " + str(referenceAmplitude)
+            logMessage += "\n    Target Amplitude: " + str(targetAmplitude)
+            if amplitudeGrow:
+                logMessage += "\n    Amplitude grew too much between time steps."
+                logMessage += "\n    Allowed Amplitude Growth Factor: " + str(conf.amplitudeGrowLimit)
+                logMessage += "\n    Problematic Amplitude Growth Factor: " + str(amplitudeGrowAmount)
+            if amplitudeShrink:
+                logMessage += "\n    Amplitude shrunk too much between time steps."
+                logMessage += "\n    Allowed Amplitude Shrinkage Factor: " + str(conf.amplitudeShrinkLimit)
+                logMessage += "\n    Problematic Amplitude Shrinkage Factor: " + str(amplitudeShrinkAmount)
             self.parent.updateRunningLog(logMessage, "AMPLITUDE_CORRECTION")
             targetLorentz.updateAmplitude(referenceAmplitude)
             targetLorentz.updateSkew(referenceLorentz.skew)
             targetLorentz.updateWidth(referenceLorentz.fullWidthHalfMaximum)
         if amplitudeCutoff:
             logMessage = "Amplitude cutoff at " + targetLorentz.getID()
+            logMessage += "\n    Amplitude fell below allowed noise level."
+            logMessage += "\n    Prediced Base Noise Level: " + str(2 * self.noiseLevel)
+            logMessage += "\n    Current Noise Filter Multiplier: " + str(conf.noiseFilterLevel)
+            logMessage += "\n    Overall Noise Filter Cut Off: " + str(2 * self.noiseLevel * conf.noiseFilterLevel)
+            logMessage += "\n    Target Amplitude: " + str(targetAmplitude)
             self.parent.updateRunningLog(logMessage, "AMPLITUDE_CORRECTION")
             targetLorentz.updateAmplitude(referenceAmplitude)
             targetLorentz.updatePeakFrequency(referenceLorentz.peakFrequency)
@@ -290,14 +318,21 @@ class ModularFitTracker:
         if index == 0:
             referenceDataBatch = self.dataSet.dataBatchArray[0]
             previousDataBatch = self.dataSet.dataBatchArray[0]
-            targetDataBatch.importLorentzFromDataBatch(previousDataBatch) #this doesn't work
+            targetDataBatch.importLorentzFromDataBatch(previousDataBatch) # this doesn't work
         else:
-            previousDataBatch = self.dataSet.dataBatchArray[index - 1]
-            targetDataBatch.importLorentzFromDataBatch(previousDataBatch)
+            referenceDataBatch = self.dataSet.dataBatchArray[index - 1]
+            targetDataBatch.importLorentzFromDataBatch(referenceDataBatch)
+            # print("index check: " + str(targetDataBatch.index))
             self.predictReferenceDataBatch(targetDataBatch)
-            referenceDataBatch = DataBatch(self.dataSet)
-            referenceDataBatch.copyDataBatch(targetDataBatch)
+            # targetDataBatch = DataBatch(self.dataSet)
+            # targetDataBatch.copyDataBatch(previousDataBatch) # changed targetDataBatch -> previousDataBatch
         return referenceDataBatch, targetDataBatch
+
+    def setDataBatchForIndex(self, index, dataBatch):
+        # preBatch = self.dataSet.dataBatchArray[index]
+        self.dataSet.dataBatchArray[index] = dataBatch
+        # postBatch = self.dataSet.dataBatchArray[index]
+        # print("update success: " + str(not preBatch is postBatch))
 
     def plotDataBatch(self, dataBatch):
         if conf.displayScale == "local":
@@ -314,23 +349,29 @@ class ModularFitTracker:
         for fit in fitList:
             self.ax.plot(fit[0], fit[1], color='r')
         self.ax.plot(xPeaks, yPeaks, 'x', color='g')
+        # print("freq peak position: " + str(xPeaks[0]))
         if conf.noiseFilterDisplay:
             ySmooth = yBackground
-            if conf.noiseFilterSmoothing:
-                ySmooth = savgol_filter(ySmooth, 53, 3)
             if conf.noiseFilterFlat:
                 for fit in fitList:
                     xData = fit[0]
+                    # print("xData: " + str(xData))
+                    # print("proof of fit: " + str(xData[0]) + ", " + str(xData[-1]))
                     yLeft = ySmooth[np.where(xBackground == xData[0])]
                     yRight = ySmooth[np.where(xBackground == xData[-1])]
-                    yData = fit[1]
+                    # print("x range: " + str(xBackground[0]) + ", " + str(xBackground[-1]))
+                    # print("y: " + str(yLeft) + " " + str(yRight))
+                    # print("ySmooth: " + str(ySmooth))
                     xRef = np.array([xData[0], xData[-1]])
-                    yRef = np.array([yLeft, yRight])
+                    yRef = np.array([yLeft[0], yRight[0]])
+                    # print("xRef: " + str(xRef))
+                    # print("yRef: " + str(yRef))
                     connection = np.polyfit(xRef, yRef, 1)
                     for x in xData:
                         i = np.where(xBackground == x)
-                        pre = ySmooth[i]
                         ySmooth[i] = connection[1] + (x * connection[0])
+            if conf.noiseFilterSmoothing:
+                ySmooth = savgol_filter(ySmooth, 53, 3)
             self.ax.plot(xBackground, ySmooth + self.noiseLevel, color='y')
             self.ax.plot(xBackground, ySmooth - self.noiseLevel, color='y')
             if conf.displayTemp:
