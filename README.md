@@ -6,6 +6,10 @@ After you have data imported, you can select it manually. Left click to select a
 
 To edit any of the tracking, fitting, export, debugging, or any other criteria, tweak them in 'modularConfig.py' These _will_ ultimately all be documented in full. But, we're not quite there yet I'm afraid.
 
+## Deprecated
+
+This project is deprecated in favor of [ML Peak Tracker](https://github.com/GabePoel/ML-Peak-Tracker). All future support will be there. I'm archiving this project.
+
 ## Quick Start Guide
 
 Peak Tracker comes with a pre-loaded set of data to experiment with before plugging in your own. Before you load up your own RUS data and get frustrated trying to figure out how to make Peak Tracker work, it's recommended that you follow along with this guide which goes through the basics of how to use Peak Tacker with this initialized default data.
